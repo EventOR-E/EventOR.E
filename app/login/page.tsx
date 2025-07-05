@@ -1,26 +1,99 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Calendar, Eye, EyeOff } from "lucide-react"
+import { Calendar, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
+import { useToast } from "@/hooks/use-toast"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [rememberMe, setRememberMe] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const router = useRouter()
+  const { toast } = useToast()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle login logic here
-    console.log("Login attempt:", { email, password, rememberMe })
+    setIsLoading(true)
+    setError("")
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      // Check if response is ok before parsing JSON
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("Login response error:", errorText)
+
+        // Try to parse as JSON, fallback to text
+        let errorMessage = "Login failed. Please try again."
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          errorMessage = errorText.includes("Internal") ? "Server error. Please try again later." : errorText
+        }
+
+        setError(errorMessage)
+        return
+      }
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Login Successful",
+          description: `Welcome back, ${data.user.firstName}!`,
+        })
+
+        // Store user data in localStorage for demo purposes
+        localStorage.setItem("user", JSON.stringify(data.user))
+
+        // Redirect based on user type
+        if (data.user.userType === "provider") {
+          router.push("/dashboard")
+        } else {
+          router.push("/browse")
+        }
+      } else {
+        setError(data.error || "Invalid email or password")
+      }
+    } catch (error) {
+      console.error("Login error:", error)
+      setError("Network error. Please check your connection and try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleGoogleLogin = () => {
+    toast({
+      title: "Google Login",
+      description: "Google login will be available soon!",
+    })
+  }
+
+  const fillDemoCredentials = () => {
+    setEmail("demo@eventor.com")
+    setPassword("demo123")
+    setError("")
   }
 
   return (
@@ -53,7 +126,30 @@ export default function LoginPage() {
             <CardDescription className="text-slate-600">Enter your credentials to access your account</CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Demo Credentials Alert */}
+            <Alert className="mb-6 bg-blue-50/50 border-blue-200/50">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Demo Account:</strong> Use{" "}
+                <button
+                  type="button"
+                  onClick={fillDemoCredentials}
+                  className="text-blue-600 hover:underline font-medium"
+                >
+                  demo@eventor.com / demo123
+                </button>{" "}
+                to test the platform
+              </AlertDescription>
+            </Alert>
+
             <form onSubmit={handleLogin} className="space-y-5">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-slate-700 font-medium">
                   Email Address
@@ -65,6 +161,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  disabled={isLoading}
                   className="bg-white/50 backdrop-blur-sm border-slate-200/50 focus:border-slate-400 focus:ring-slate-400/20 placeholder:text-slate-400"
                 />
               </div>
@@ -81,6 +178,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    disabled={isLoading}
                     className="bg-white/50 backdrop-blur-sm border-slate-200/50 focus:border-slate-400 focus:ring-slate-400/20 placeholder:text-slate-400 pr-10"
                   />
                   <Button
@@ -89,6 +187,7 @@ export default function LoginPage() {
                     size="sm"
                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-slate-100/50 text-slate-500 hover:text-slate-700"
                     onClick={() => setShowPassword(!showPassword)}
+                    disabled={isLoading}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
@@ -101,6 +200,7 @@ export default function LoginPage() {
                     id="remember"
                     checked={rememberMe}
                     onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                    disabled={isLoading}
                     className="border-slate-300 data-[state=checked]:bg-slate-600 data-[state=checked]:border-slate-600"
                   />
                   <Label htmlFor="remember" className="text-sm text-slate-600">
@@ -117,10 +217,18 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                disabled={isLoading || !email || !password}
+                className="w-full bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 size="lg"
               >
-                Sign In
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing In...
+                  </>
+                ) : (
+                  "Sign In"
+                )}
               </Button>
             </form>
 
@@ -136,7 +244,10 @@ export default function LoginPage() {
 
               <div className="grid grid-cols-1 gap-4 mt-6">
                 <Button
+                  type="button"
                   variant="outline"
+                  onClick={handleGoogleLogin}
+                  disabled={isLoading}
                   className="w-full bg-white/50 backdrop-blur-sm border-slate-200/50 hover:bg-white/70 hover:border-slate-300 text-slate-700 shadow-sm hover:shadow-md transition-all duration-300"
                 >
                   <svg className="h-4 w-4 mr-3" viewBox="0 0 24 24">
