@@ -2,581 +2,448 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Slider } from "@/components/ui/slider"
-import { MobileNav } from "@/components/mobile-nav"
-import {
-  Calendar,
-  Star,
-  MapPin,
-  Filter,
-  Search,
-  MessageCircle,
-  Heart,
-  Shield,
-  Clock,
-  DollarSign,
-  Camera,
-  Music,
-  Utensils,
-  Palette,
-  Video,
-  MapIcon,
-  Users,
-  Car,
-} from "lucide-react"
+import { Search, Filter, Star, MapPin, Heart, Share2, Sparkles, Crown, Zap } from "lucide-react"
 import Link from "next/link"
-import Image from "next/image"
-
-// Mock data for service providers
-const mockProviders = [
-  {
-    id: 1,
-    name: "Kwame Asante",
-    businessName: "Kwame Asante Photography",
-    category: "Photography",
-    location: "Accra, Greater Accra",
-    rating: 4.9,
-    reviewCount: 127,
-    startingPrice: 500,
-    avatar: "/placeholder.svg?height=80&width=80",
-    coverImage: "/placeholder.svg?height=200&width=300",
-    verified: true,
-    responseTime: "2 hours",
-    completedJobs: 245,
-    tags: ["Wedding", "Portrait", "Event", "Commercial"],
-    description: "Professional wedding and event photographer with 8+ years experience.",
-    priceRange: "GHC 500 - GHC 2,500",
-  },
-  {
-    id: 2,
-    name: "Ama Osei Catering",
-    businessName: "Ama's Kitchen",
-    category: "Catering",
-    location: "Kumasi, Ashanti",
-    rating: 4.8,
-    reviewCount: 89,
-    startingPrice: 15,
-    avatar: "/placeholder.svg?height=80&width=80",
-    coverImage: "/placeholder.svg?height=200&width=300",
-    verified: true,
-    responseTime: "1 hour",
-    completedJobs: 156,
-    tags: ["Traditional", "Continental", "Buffet", "Corporate"],
-    description: "Authentic Ghanaian and continental cuisine for all occasions.",
-    priceRange: "GHC 15 - GHC 50 per person",
-  },
-  {
-    id: 3,
-    name: "DJ Kobby",
-    businessName: "Kobby Entertainment",
-    category: "DJ & Music",
-    location: "Accra, Greater Accra",
-    rating: 4.7,
-    reviewCount: 203,
-    startingPrice: 300,
-    avatar: "/placeholder.svg?height=80&width=80",
-    coverImage: "/placeholder.svg?height=200&width=300",
-    verified: false,
-    responseTime: "30 minutes",
-    completedJobs: 312,
-    tags: ["Wedding", "Corporate", "Birthday", "Club"],
-    description: "Professional DJ and MC services for all types of events.",
-    priceRange: "GHC 300 - GHC 1,200",
-  },
-  {
-    id: 4,
-    name: "Akosua Decorations",
-    businessName: "Royal Touch Decor",
-    category: "Decoration",
-    location: "Tema, Greater Accra",
-    rating: 4.9,
-    reviewCount: 67,
-    startingPrice: 800,
-    avatar: "/placeholder.svg?height=80&width=80",
-    coverImage: "/placeholder.svg?height=200&width=300",
-    verified: true,
-    responseTime: "3 hours",
-    completedJobs: 98,
-    tags: ["Wedding", "Corporate", "Traditional", "Modern"],
-    description: "Elegant event decoration and styling services.",
-    priceRange: "GHC 800 - GHC 5,000",
-  },
-  {
-    id: 5,
-    name: "Kofi Video Productions",
-    businessName: "KVP Studios",
-    category: "Videography",
-    location: "Accra, Greater Accra",
-    rating: 4.6,
-    reviewCount: 45,
-    startingPrice: 600,
-    avatar: "/placeholder.svg?height=80&width=80",
-    coverImage: "/placeholder.svg?height=200&width=300",
-    verified: true,
-    responseTime: "4 hours",
-    completedJobs: 78,
-    tags: ["Wedding", "Corporate", "Documentary", "Music Video"],
-    description: "Professional videography and post-production services.",
-    priceRange: "GHC 600 - GHC 3,000",
-  },
-  {
-    id: 6,
-    name: "Golden Gate Venues",
-    businessName: "Golden Gate Events Center",
-    category: "Venue",
-    location: "East Legon, Greater Accra",
-    rating: 4.8,
-    reviewCount: 134,
-    startingPrice: 2000,
-    avatar: "/placeholder.svg?height=80&width=80",
-    coverImage: "/placeholder.svg?height=200&width=300",
-    verified: true,
-    responseTime: "1 hour",
-    completedJobs: 89,
-    tags: ["Wedding", "Corporate", "Conference", "Reception"],
-    description: "Premium event venue with full-service amenities.",
-    priceRange: "GHC 2,000 - GHC 8,000",
-  },
-]
-
-const categories = [
-  { name: "Photography", icon: Camera, count: 150 },
-  { name: "Catering", icon: Utensils, count: 200 },
-  { name: "DJ & Music", icon: Music, count: 80 },
-  { name: "Decoration", icon: Palette, count: 120 },
-  { name: "Videography", icon: Video, count: 90 },
-  { name: "Venue", icon: MapIcon, count: 60 },
-  { name: "Planning", icon: Users, count: 40 },
-  { name: "Transportation", icon: Car, count: 70 },
-]
-
-const locations = [
-  "All Locations",
-  "Greater Accra",
-  "Ashanti",
-  "Northern",
-  "Central",
-  "Western",
-  "Volta",
-  "Eastern",
-  "Brong Ahafo",
-]
 
 export default function BrowsePage() {
-  const [providers, setProviders] = useState(mockProviders)
-  const [filteredProviders, setFilteredProviders] = useState(mockProviders)
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("All Categories")
-  const [selectedLocation, setSelectedLocation] = useState("All Locations")
+  const [selectedCategory, setSelectedCategory] = useState("all")
+  const [selectedLocation, setSelectedLocation] = useState("all")
   const [priceRange, setPriceRange] = useState([0, 5000])
   const [sortBy, setSortBy] = useState("rating")
-  const [showVerifiedOnly, setShowVerifiedOnly] = useState(false)
-  const [user, setUser] = useState(null)
+  const [providers, setProviders] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  // Fetch user data
+  const mockProviders = [
+    {
+      id: 1,
+      name: "Elite Wedding Planners",
+      category: "Wedding Planning",
+      rating: 4.9,
+      reviews: 127,
+      location: "Accra",
+      price: 2500,
+      image: "/placeholder.jpg",
+      description: "Creating magical wedding experiences with attention to every detail",
+      verified: true,
+      responseTime: "Within 2 hours",
+      completedEvents: 150,
+      gradient: "from-pink-500 to-rose-500",
+    },
+    {
+      id: 2,
+      name: "Rhythm & Beats DJ",
+      category: "DJ Services",
+      rating: 4.8,
+      reviews: 89,
+      location: "Kumasi",
+      price: 800,
+      image: "/placeholder.jpg",
+      description: "Professional DJ services for all types of events and celebrations",
+      verified: true,
+      responseTime: "Within 1 hour",
+      completedEvents: 200,
+      gradient: "from-purple-500 to-indigo-500",
+    },
+    {
+      id: 3,
+      name: "Capture Moments Photography",
+      category: "Photography",
+      rating: 4.9,
+      reviews: 156,
+      location: "Tema",
+      price: 1200,
+      image: "/placeholder.jpg",
+      description: "Professional photography services capturing your special moments",
+      verified: true,
+      responseTime: "Within 3 hours",
+      completedEvents: 300,
+      gradient: "from-blue-500 to-cyan-500",
+    },
+    {
+      id: 4,
+      name: "Gourmet Catering Co.",
+      category: "Catering",
+      rating: 4.7,
+      reviews: 94,
+      location: "Accra",
+      price: 1800,
+      image: "/placeholder.jpg",
+      description: "Exquisite catering services with international and local cuisine",
+      verified: true,
+      responseTime: "Within 4 hours",
+      completedEvents: 120,
+      gradient: "from-green-500 to-emerald-500",
+    },
+    {
+      id: 5,
+      name: "Elegant Decorations",
+      category: "Decoration",
+      rating: 4.6,
+      reviews: 73,
+      location: "Takoradi",
+      price: 1500,
+      image: "/placeholder.jpg",
+      description: "Beautiful event decorations that transform any space",
+      verified: false,
+      responseTime: "Within 6 hours",
+      completedEvents: 85,
+      gradient: "from-yellow-500 to-orange-500",
+    },
+    {
+      id: 6,
+      name: "Live Entertainment Group",
+      category: "Entertainment",
+      rating: 4.8,
+      reviews: 112,
+      location: "Kumasi",
+      price: 2200,
+      image: "/placeholder.jpg",
+      description: "Live bands and entertainment for unforgettable events",
+      verified: true,
+      responseTime: "Within 2 hours",
+      completedEvents: 180,
+      gradient: "from-red-500 to-pink-500",
+    },
+  ]
+
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await fetch("/api/auth/me")
-        if (response.ok) {
-          const userData = await response.json()
-          setUser(userData)
-        }
-      } catch (error) {
-        console.error("Failed to fetch user:", error)
-      }
-    }
-    fetchUser()
+    // Simulate API call
+    setTimeout(() => {
+      setProviders(mockProviders)
+      setLoading(false)
+    }, 1000)
   }, [])
 
-  // Filter and sort providers
-  useEffect(() => {
-    const filtered = providers.filter((provider) => {
-      const matchesSearch =
-        provider.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        provider.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        provider.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        provider.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+  const categories = [
+    { value: "all", label: "All Categories", icon: Sparkles, color: "from-purple-400 to-pink-400" },
+    { value: "wedding-planning", label: "Wedding Planning", icon: Heart, color: "from-pink-400 to-rose-400" },
+    { value: "photography", label: "Photography", icon: Sparkles, color: "from-blue-400 to-cyan-400" },
+    { value: "dj-services", label: "DJ Services", icon: Zap, color: "from-purple-400 to-indigo-400" },
+    { value: "catering", label: "Catering", icon: Crown, color: "from-green-400 to-emerald-400" },
+    { value: "decoration", label: "Decoration", icon: Sparkles, color: "from-yellow-400 to-orange-400" },
+    { value: "entertainment", label: "Entertainment", icon: Zap, color: "from-red-400 to-pink-400" },
+  ]
 
-      const matchesCategory = selectedCategory === "All Categories" || provider.category === selectedCategory
-      const matchesLocation = selectedLocation === "All Locations" || provider.location.includes(selectedLocation)
-      const matchesPrice = provider.startingPrice >= priceRange[0] && provider.startingPrice <= priceRange[1]
-      const matchesVerified = !showVerifiedOnly || provider.verified
+  const locations = [
+    { value: "all", label: "All Locations" },
+    { value: "accra", label: "Accra" },
+    { value: "kumasi", label: "Kumasi" },
+    { value: "tema", label: "Tema" },
+    { value: "takoradi", label: "Takoradi" },
+    { value: "cape-coast", label: "Cape Coast" },
+  ]
 
-      return matchesSearch && matchesCategory && matchesLocation && matchesPrice && matchesVerified
-    })
+  const filteredProviders = providers.filter((provider) => {
+    const matchesSearch =
+      provider.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      provider.category.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesCategory =
+      selectedCategory === "all" || provider.category.toLowerCase().replace(" ", "-") === selectedCategory
+    const matchesLocation = selectedLocation === "all" || provider.location.toLowerCase() === selectedLocation
+    const matchesPrice = provider.price >= priceRange[0] && provider.price <= priceRange[1]
 
-    // Sort providers
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "rating":
-          return b.rating - a.rating
-        case "price-low":
-          return a.startingPrice - b.startingPrice
-        case "price-high":
-          return b.startingPrice - a.startingPrice
-        case "reviews":
-          return b.reviewCount - a.reviewCount
-        default:
-          return 0
-      }
-    })
+    return matchesSearch && matchesCategory && matchesLocation && matchesPrice
+  })
 
-    setFilteredProviders(filtered)
-  }, [providers, searchQuery, selectedCategory, selectedLocation, priceRange, sortBy, showVerifiedOnly])
-
-  const handleMessageProvider = async (providerId: number) => {
-    if (!user) {
-      window.location.href = "/login"
-      return
-    }
-
-    try {
-      const response = await fetch("/api/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ providerId }),
-      })
-
-      if (response.ok) {
-        const conversation = await response.json()
-        window.location.href = `/messages?conversation=${conversation.id}`
-      }
-    } catch (error) {
-      console.error("Failed to start conversation:", error)
-    }
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full animate-pulse"></div>
+          <p className="text-lg text-gray-600">Loading amazing providers...</p>
+        </div>
+      </div>
+    )
   }
 
-  const FilterSheet = () => (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="md:hidden bg-transparent">
-          <Filter className="h-4 w-4 mr-2" />
-          Filters
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="bottom" className="h-[80vh]">
-        <SheetHeader>
-          <SheetTitle>Filter Services</SheetTitle>
-        </SheetHeader>
-        <div className="space-y-6 mt-6">
-          {/* Category Filter */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Category</label>
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All Categories">All Categories</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category.name} value={category.name}>
-                    {category.name} ({category.count})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Location Filter */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Location</label>
-            <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {locations.map((location) => (
-                  <SelectItem key={location} value={location}>
-                    {location}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Price Range */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">
-              Price Range: GHC {priceRange[0]} - GHC {priceRange[1]}
-            </label>
-            <Slider value={priceRange} onValueChange={setPriceRange} max={5000} step={50} className="mt-2" />
-          </div>
-
-          {/* Verified Only */}
-          <div className="flex items-center space-x-2">
-            <Checkbox id="verified" checked={showVerifiedOnly} onCheckedChange={setShowVerifiedOnly} />
-            <label htmlFor="verified" className="text-sm font-medium">
-              Verified providers only
-            </label>
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
-  )
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
       {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <Calendar className="h-8 w-8 text-purple-600" />
-            <span className="text-2xl font-bold text-gray-900">EventOR</span>
-          </Link>
+      <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 text-white py-12">
+        <div className="container mx-auto px-4">
+          <h1 className="text-4xl font-bold mb-4 text-center">Browse Event Providers</h1>
+          <p className="text-xl text-center text-purple-100 mb-8">Find the perfect professionals for your event</p>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
-            <Link href="/browse" className="text-purple-600 font-medium">
-              Browse Services
-            </Link>
-            <Link href="/how-it-works" className="text-gray-600 hover:text-purple-600">
-              How It Works
-            </Link>
-            {user ? (
-              <>
-                <Link href="/dashboard" className="text-gray-600 hover:text-purple-600">
-                  Dashboard
-                </Link>
-                <Link href="/messages" className="text-gray-600 hover:text-purple-600">
-                  Messages
-                </Link>
-                <Link href="/profile" className="text-gray-600 hover:text-purple-600">
-                  Profile
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link href="/login" className="text-gray-600 hover:text-purple-600">
-                  Sign In
-                </Link>
-                <Button asChild>
-                  <Link href="/register">Get Started</Link>
-                </Button>
-              </>
-            )}
-          </nav>
-
-          {/* Mobile Navigation */}
-          <MobileNav user={user} />
-        </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-6">
-        {/* Search and Filters */}
-        <div className="mb-8">
-          {/* Mobile Search */}
-          <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search services, providers, or locations..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-12 text-base"
-              />
-            </div>
-          </div>
-
-          {/* Mobile Filter and Sort */}
-          <div className="flex items-center justify-between mb-4 md:hidden">
-            <FilterSheet />
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="rating">Highest Rated</SelectItem>
-                <SelectItem value="price-low">Price: Low to High</SelectItem>
-                <SelectItem value="price-high">Price: High to Low</SelectItem>
-                <SelectItem value="reviews">Most Reviews</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Desktop Filters */}
-          <div className="hidden md:flex items-center gap-4 mb-6">
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All Categories">All Categories</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category.name} value={category.name}>
-                    {category.name} ({category.count})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {locations.map((location) => (
-                  <SelectItem key={location} value={location}>
-                    {location}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="rating">Highest Rated</SelectItem>
-                <SelectItem value="price-low">Price: Low to High</SelectItem>
-                <SelectItem value="price-high">Price: High to Low</SelectItem>
-                <SelectItem value="reviews">Most Reviews</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox id="verified-desktop" checked={showVerifiedOnly} onCheckedChange={setShowVerifiedOnly} />
-              <label htmlFor="verified-desktop" className="text-sm">
-                Verified only
-              </label>
-            </div>
-          </div>
-        </div>
-
-        {/* Results */}
-        <div className="mb-4">
-          <p className="text-gray-600">
-            Showing {filteredProviders.length} of {providers.length} service providers
-          </p>
-        </div>
-
-        {/* Provider Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredProviders.map((provider) => (
-            <Card key={provider.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="relative">
-                <Image
-                  src={provider.coverImage || "/placeholder.svg"}
-                  alt={provider.businessName}
-                  width={300}
-                  height={200}
-                  className="w-full h-48 object-cover"
-                />
-                <div className="absolute top-3 right-3">
-                  <Button size="sm" variant="secondary" className="h-8 w-8 p-0">
-                    <Heart className="h-4 w-4" />
-                  </Button>
+          {/* Search Bar */}
+          <div className="max-w-2xl mx-auto">
+            <div className="relative bg-white/10 backdrop-blur-md rounded-2xl p-2 border border-white/20">
+              <div className="flex items-center space-x-2">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/70 h-5 w-5" />
+                  <Input
+                    type="text"
+                    placeholder="Search providers..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-12 pr-4 py-3 bg-transparent border-0 text-white placeholder-white/70 focus:ring-0"
+                  />
                 </div>
-                {provider.verified && (
-                  <Badge className="absolute top-3 left-3 bg-green-500">
-                    <Shield className="h-3 w-3 mr-1" />
-                    Verified
-                  </Badge>
-                )}
-              </div>
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button
+                      size="lg"
+                      className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white font-semibold px-6 py-3 rounded-xl md:hidden"
+                    >
+                      <Filter className="h-5 w-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="bottom" className="h-[80vh] bg-gradient-to-br from-purple-50 to-pink-50">
+                    <SheetHeader>
+                      <SheetTitle className="text-2xl bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                        Filter Providers
+                      </SheetTitle>
+                      <SheetDescription>Refine your search to find the perfect provider</SheetDescription>
+                    </SheetHeader>
+                    <div className="py-6 space-y-6">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 mb-2 block">Category</label>
+                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                          <SelectTrigger className="bg-white border-purple-200">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.map((category) => (
+                              <SelectItem key={category.value} value={category.value}>
+                                {category.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={provider.avatar || "/placeholder.svg"} alt={provider.name} />
-                      <AvatarFallback>{provider.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <CardTitle className="text-lg truncate">{provider.name}</CardTitle>
-                      <CardDescription className="truncate">{provider.businessName}</CardDescription>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 mb-2 block">Location</label>
+                        <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                          <SelectTrigger className="bg-white border-purple-200">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {locations.map((location) => (
+                              <SelectItem key={location.value} value={location.value}>
+                                {location.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 mb-4 block">
+                          Price Range: GH₵{priceRange[0]} - GH₵{priceRange[1]}
+                        </label>
+                        <Slider
+                          value={priceRange}
+                          onValueChange={setPriceRange}
+                          max={5000}
+                          step={100}
+                          className="w-full"
+                        />
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </SheetContent>
+                </Sheet>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-                <div className="flex items-center justify-between text-sm text-gray-600">
-                  <div className="flex items-center space-x-1">
-                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    <span className="font-medium">{provider.rating}</span>
-                    <span>({provider.reviewCount})</span>
-                  </div>
-                  <Badge variant="secondary">{provider.category}</Badge>
-                </div>
-
-                <div className="flex items-center text-sm text-gray-600">
-                  <MapPin className="h-4 w-4 mr-1" />
-                  <span className="truncate">{provider.location}</span>
-                </div>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Desktop Filters Sidebar */}
+          <div className="hidden lg:block w-80">
+            <Card className="sticky top-8 border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-t-lg">
+                <CardTitle className="flex items-center gap-2">
+                  <Filter className="h-5 w-5" />
+                  Filters
+                </CardTitle>
               </CardHeader>
-
-              <CardContent className="pt-0">
-                <p className="text-sm text-gray-600 mb-3 line-clamp-2">{provider.description}</p>
-
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {provider.tags.slice(0, 3).map((tag) => (
-                    <Badge key={tag} variant="outline" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                  {provider.tags.length > 3 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{provider.tags.length - 3}
-                    </Badge>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
-                  <div className="flex items-center">
-                    <Clock className="h-4 w-4 mr-1" />
-                    <span>Responds in {provider.responseTime}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <DollarSign className="h-4 w-4 mr-1" />
-                    <span className="font-medium text-purple-600">{provider.priceRange}</span>
+              <CardContent className="p-6 space-y-6">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-3 block">Category</label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {categories.map((category) => {
+                      const IconComponent = category.icon
+                      return (
+                        <button
+                          key={category.value}
+                          onClick={() => setSelectedCategory(category.value)}
+                          className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
+                            selectedCategory === category.value
+                              ? `bg-gradient-to-r ${category.color} text-white shadow-lg`
+                              : "bg-gray-50 hover:bg-gray-100 text-gray-700"
+                          }`}
+                        >
+                          <IconComponent className="h-4 w-4" />
+                          <span className="text-sm font-medium">{category.label}</span>
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 bg-transparent"
-                    onClick={() => handleMessageProvider(provider.id)}
-                  >
-                    <MessageCircle className="h-4 w-4 mr-1" />
-                    Message
-                  </Button>
-                  <Button size="sm" className="flex-1" asChild>
-                    <Link href={`/provider/${provider.id}`}>View Profile</Link>
-                  </Button>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-3 block">Location</label>
+                  <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                    <SelectTrigger className="bg-white border-purple-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.map((location) => (
+                        <SelectItem key={location.value} value={location.value}>
+                          {location.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-4 block">
+                    Price Range: GH₵{priceRange[0]} - GH₵{priceRange[1]}
+                  </label>
+                  <Slider value={priceRange} onValueChange={setPriceRange} max={5000} step={100} className="w-full" />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-3 block">Sort By</label>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="bg-white border-purple-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="rating">Highest Rated</SelectItem>
+                      <SelectItem value="price-low">Price: Low to High</SelectItem>
+                      <SelectItem value="price-high">Price: High to Low</SelectItem>
+                      <SelectItem value="reviews">Most Reviews</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
-
-        {/* No Results */}
-        {filteredProviders.length === 0 && (
-          <div className="text-center py-12">
-            <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No providers found</h3>
-            <p className="text-gray-600 mb-4">Try adjusting your search criteria or filters to find more results.</p>
-            <Button
-              onClick={() => {
-                setSearchQuery("")
-                setSelectedCategory("All Categories")
-                setSelectedLocation("All Locations")
-                setPriceRange([0, 5000])
-                setShowVerifiedOnly(false)
-              }}
-            >
-              Clear All Filters
-            </Button>
           </div>
-        )}
+
+          {/* Results */}
+          <div className="flex-1">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                {filteredProviders.length} Providers Found
+              </h2>
+
+              <div className="hidden md:block">
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-48 bg-white border-purple-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="rating">Highest Rated</SelectItem>
+                    <SelectItem value="price-low">Price: Low to High</SelectItem>
+                    <SelectItem value="price-high">Price: High to Low</SelectItem>
+                    <SelectItem value="reviews">Most Reviews</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredProviders.map((provider) => (
+                <Card
+                  key={provider.id}
+                  className="group hover:scale-105 transition-all duration-300 cursor-pointer overflow-hidden border-0 shadow-lg hover:shadow-2xl bg-white"
+                >
+                  <div className="relative">
+                    <div
+                      className={`h-48 bg-gradient-to-br ${provider.gradient} flex items-center justify-center relative overflow-hidden`}
+                    >
+                      <div className="text-white text-6xl font-bold opacity-20">{provider.name.charAt(0)}</div>
+                      {provider.verified && (
+                        <Badge className="absolute top-4 left-4 bg-gradient-to-r from-green-400 to-blue-500 text-white border-0">
+                          ✓ Verified
+                        </Badge>
+                      )}
+                      <div className="absolute top-4 right-4 flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="bg-white/20 backdrop-blur-sm text-white hover:bg-white/30"
+                        >
+                          <Heart className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="bg-white/20 backdrop-blur-sm text-white hover:bg-white/30"
+                        >
+                          <Share2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="font-bold text-lg text-gray-800 group-hover:text-purple-600 transition-colors">
+                        {provider.name}
+                      </h3>
+                    </div>
+
+                    <Badge variant="secondary" className="mb-3 bg-purple-100 text-purple-700">
+                      {provider.category}
+                    </Badge>
+
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">{provider.description}</p>
+
+                    <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
+                      <div className="flex items-center space-x-1">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <span className="font-semibold">{provider.rating}</span>
+                        <span>({provider.reviews} reviews)</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <MapPin className="h-4 w-4 text-red-400" />
+                        <span>{provider.location}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
+                      <span>{provider.completedEvents} events completed</span>
+                      <span className="text-green-600">⚡ {provider.responseTime}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+                        From GH₵{provider.price}
+                      </span>
+                      <Link href={`/provider/${provider.id}`}>
+                        <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white">
+                          View Details
+                        </Button>
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {filteredProviders.length === 0 && (
+              <div className="text-center py-12">
+                <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full flex items-center justify-center">
+                  <Search className="h-12 w-12 text-gray-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-600 mb-2">No providers found</h3>
+                <p className="text-gray-500">Try adjusting your filters or search terms</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )
