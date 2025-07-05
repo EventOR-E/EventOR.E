@@ -1,162 +1,157 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
+import { verifyToken } from "@/lib/auth"
 
-// Initialize database connection
 function getDatabase() {
-  if (!process.env.DATABASE_URL) {
+  const databaseUrl = process.env.DATABASE_URL
+  if (!databaseUrl) {
     throw new Error("DATABASE_URL environment variable is not set")
   }
-  return neon(process.env.DATABASE_URL)
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    // Check if database is configured
-    if (!process.env.DATABASE_URL) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Database not configured. Please set up your Neon database connection.",
-        },
-        { status: 503 },
-      )
-    }
-
-    // Get auth token from cookie
-    const token = request.cookies.get("auth-token")?.value
-    if (!token) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Authentication required. Please log in to book services.",
-        },
-        { status: 401 },
-      )
-    }
-
-    // Parse request body
-    let body
-    try {
-      body = await request.json()
-    } catch (error) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid request format",
-        },
-        { status: 400 },
-      )
-    }
-
-    const { providerId, serviceId, eventDate, eventTime, location, guestCount, specialRequirements, totalAmount } = body
-
-    // Validate required fields
-    if (!providerId || !serviceId || !eventDate || !eventTime || !location || !guestCount || !totalAmount) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Missing required fields. Please fill in all required information.",
-        },
-        { status: 400 },
-      )
-    }
-
-    // Validate amounts
-    if (totalAmount <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid amount specified",
-        },
-        { status: 400 },
-      )
-    }
-
-    // For now, simulate successful booking creation since we need to set up the database first
-    const mockBooking = {
-      id: Math.floor(Math.random() * 1000) + 1,
-      providerId,
-      serviceId,
-      eventDate,
-      eventTime,
-      location,
-      guestCount,
-      totalAmount,
-      specialRequirements,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    }
-
-    return NextResponse.json({
-      success: true,
-      booking: mockBooking,
-      message: "Booking created successfully",
-    })
-  } catch (error) {
-    console.error("Booking creation error:", error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: "An internal error occurred. Please try again later.",
-      },
-      { status: 500 },
-    )
-  }
+  return neon(databaseUrl)
 }
 
 export async function GET(request: NextRequest) {
   try {
     // Check if database is configured
     if (!process.env.DATABASE_URL) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Database not configured",
-        },
-        { status: 503 },
-      )
+      return NextResponse.json({ success: false, error: "Database not configured" }, { status: 503 })
     }
 
-    // Get auth token from cookie
-    const token = request.cookies.get("auth-token")?.value
-    if (!token) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Authentication required",
-        },
-        { status: 401 },
-      )
+    const { searchParams } = new URL(request.url)
+    const providerId = searchParams.get("providerId")
+    const seekerId = searchParams.get("seekerId")
+
+    const sql = getDatabase()
+
+    let bookings = []
+
+    if (providerId) {
+      // Get bookings for provider
+      bookings = await sql`
+        SELECT 
+          b.*,
+          u.first_name as client_first_name,
+          u.last_name as client_last_name,
+          u.avatar_url as client_avatar,
+          ps.service_name,
+          ps.base_price
+        FROM bookings b
+        JOIN users u ON b.seeker_id = u.id
+        LEFT JOIN provider_services ps ON b.service_id = ps.id
+        WHERE b.provider_id = ${Number.parseInt(providerId)}
+        ORDER BY b.created_at DESC
+      `
+    } else if (seekerId) {
+      // Get bookings for seeker
+      bookings = await sql`
+        SELECT 
+          b.*,
+          pp.business_name as provider_name,
+          ps.service_name,
+          ps.base_price
+        FROM bookings b
+        JOIN provider_profiles pp ON b.provider_id = pp.user_id
+        LEFT JOIN provider_services ps ON b.service_id = ps.id
+        WHERE b.seeker_id = ${Number.parseInt(seekerId)}
+        ORDER BY b.created_at DESC
+      `
+    } else {
+      return NextResponse.json({ success: false, error: "Provider ID or Seeker ID required" }, { status: 400 })
     }
 
-    // For now, return mock bookings
-    const mockBookings = [
-      {
-        id: 1,
-        providerId: 1,
-        serviceId: 1,
-        eventDate: "2025-02-15",
-        eventTime: "14:00",
-        location: "Accra, Ghana",
-        guestCount: 100,
-        totalAmount: 2500,
-        status: "confirmed",
-        createdAt: "2025-01-05T10:00:00Z",
-      },
-    ]
+    const formattedBookings = bookings.map((booking: any) => ({
+      id: booking.id,
+      clientName: booking.client_first_name ? `${booking.client_first_name} ${booking.client_last_name}` : undefined,
+      providerName: booking.provider_name,
+      serviceName: booking.service_name || "Service",
+      eventDate: booking.event_date,
+      eventTime: booking.event_time,
+      location: booking.location,
+      guestCount: booking.guest_count,
+      totalAmount: Number.parseFloat(booking.total_amount),
+      status: booking.status,
+      createdAt: booking.created_at,
+      clientAvatar: booking.client_avatar,
+    }))
 
     return NextResponse.json({
       success: true,
-      bookings: mockBookings,
+      bookings: formattedBookings,
     })
   } catch (error) {
     console.error("Get bookings error:", error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to fetch bookings",
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    // Check if database is configured
+    if (!process.env.DATABASE_URL) {
+      return NextResponse.json({ success: false, error: "Database not configured" }, { status: 503 })
+    }
+
+    // Get token from cookie
+    const token = request.cookies.get("auth-token")?.value
+    if (!token) {
+      return NextResponse.json({ success: false, error: "Authentication required" }, { status: 401 })
+    }
+
+    // Verify token
+    const decoded = verifyToken(token)
+    if (!decoded) {
+      return NextResponse.json({ success: false, error: "Invalid token" }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { providerId, serviceId, eventDate, eventTime, location, guestCount, specialRequirements, totalAmount } = body
+
+    // Validate required fields
+    if (!providerId || !eventDate || !eventTime || !location || !guestCount || !totalAmount) {
+      return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 })
+    }
+
+    const sql = getDatabase()
+
+    // Create booking
+    const newBooking = await sql`
+      INSERT INTO bookings (
+        seeker_id, 
+        provider_id, 
+        service_id, 
+        event_date, 
+        event_time, 
+        location, 
+        guest_count, 
+        special_requirements, 
+        total_amount, 
+        status
+      )
+      VALUES (
+        ${decoded.userId}, 
+        ${providerId}, 
+        ${serviceId || null}, 
+        ${eventDate}, 
+        ${eventTime}, 
+        ${location}, 
+        ${guestCount}, 
+        ${specialRequirements || null}, 
+        ${totalAmount}, 
+        'pending'
+      )
+      RETURNING *
+    `
+
+    return NextResponse.json({
+      success: true,
+      booking: {
+        id: newBooking[0].id,
+        status: newBooking[0].status,
+        totalAmount: Number.parseFloat(newBooking[0].total_amount),
       },
-      { status: 500 },
-    )
+    })
+  } catch (error) {
+    console.error("Create booking error:", error)
+    return NextResponse.json({ success: false, error: "Failed to create booking" }, { status: 500 })
   }
 }
