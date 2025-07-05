@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { verifyToken } from "@/lib/auth"
 import { neon } from "@neondatabase/serverless"
 
 function getDatabase() {
@@ -13,49 +14,76 @@ export async function GET(request: NextRequest) {
   try {
     // Check if database is configured
     if (!process.env.DATABASE_URL) {
-      return NextResponse.json({ success: false, error: "Database not configured" }, { status: 503 })
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Database not configured",
+        },
+        { status: 503 },
+      )
     }
 
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get("userId")
-
-    if (!userId) {
-      return NextResponse.json({ success: false, error: "User ID required" }, { status: 400 })
+    // Get user ID from token
+    const token = request.cookies.get("auth-token")?.value
+    if (!token) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Authentication required",
+        },
+        { status: 401 },
+      )
     }
+
+    const decoded = verifyToken(token)
+    if (!decoded) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid token",
+        },
+        { status: 401 },
+      )
+    }
+
+    const userId = decoded.userId
 
     const sql = getDatabase()
 
-    // Get recent messages for user
+    // Fetch messages for the user
     const messages = await sql`
       SELECT 
-        m.*,
-        u.first_name as from_first_name,
-        u.last_name as from_last_name,
-        u.avatar_url as from_avatar
+        m.id, 
+        m.message, 
+        m.created_at, 
+        u.first_name as from_name, 
+        u.avatar_url as from_avatar,
+        m.is_read
       FROM messages m
-      JOIN conversations c ON m.conversation_id = c.id
-      JOIN users u ON m.sender_id = u.id
-      WHERE (c.seeker_id = ${Number.parseInt(userId)} OR c.provider_id = ${Number.parseInt(userId)})
-        AND m.sender_id != ${Number.parseInt(userId)}
+      JOIN users u ON m.from_id = u.id
+      WHERE m.to_id = ${userId}
       ORDER BY m.created_at DESC
-      LIMIT 10
     `
-
-    const formattedMessages = messages.map((message: any) => ({
-      id: message.id,
-      fromName: `${message.from_first_name} ${message.from_last_name}`,
-      message: message.content,
-      createdAt: message.created_at,
-      isRead: message.is_read,
-      fromAvatar: message.from_avatar,
-    }))
 
     return NextResponse.json({
       success: true,
-      messages: formattedMessages,
+      messages: messages.map((message: any) => ({
+        id: message.id,
+        fromName: message.from_name,
+        message: message.message,
+        createdAt: message.created_at,
+        isRead: message.is_read,
+        fromAvatar: message.from_avatar,
+      })),
     })
   } catch (error) {
     console.error("Get messages error:", error)
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 })
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to fetch messages",
+      },
+      { status: 500 },
+    )
   }
 }

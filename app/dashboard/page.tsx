@@ -24,6 +24,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { verifyToken, getUserById } from "@/lib/auth"
+import { getDatabase } from "@/lib/db"
 
 interface User {
   id: number
@@ -89,8 +91,6 @@ export default function DashboardPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [stats, setStats] = useState<DashboardStats>({
     activeBookings: 0,
-    totalBookings: 0,
-    savedProviders: 0,
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -104,32 +104,38 @@ export default function DashboardPage() {
     try {
       setLoading(true)
 
-      // Fetch current user
-      const userResponse = await fetch("/api/auth/me")
-      if (!userResponse.ok) {
-        if (userResponse.status === 401) {
-          router.push("/login")
-          return
-        }
-        throw new Error("Failed to fetch user data")
+      // Get auth token from cookie
+      const token = document.cookie.replace(/(?:(?:^|.*;\s*)auth-token\s*=\s*([^;]*).*$)|^.*$/, "$1")
+      if (!token) {
+        router.push("/login")
+        return
       }
 
-      const userData = await userResponse.json()
-      if (!userData.success) {
-        throw new Error(userData.error || "Failed to fetch user data")
+      // Verify token
+      const decoded = verifyToken(token)
+      if (!decoded) {
+        router.push("/login")
+        return
       }
 
-      setUser(userData.user)
+      // Fetch user data
+      const dbUser = await getUserById(decoded.userId)
+      if (!dbUser) {
+        router.push("/login")
+        return
+      }
+
+      setUser(dbUser)
 
       // Fetch dashboard data based on user type
-      if (userData.user.userType === "provider") {
-        await fetchProviderData(userData.user.id)
+      if (dbUser.userType === "provider") {
+        await fetchProviderData(dbUser.id)
       } else {
-        await fetchSeekerData(userData.user.id)
+        await fetchSeekerData(dbUser.id)
       }
     } catch (err) {
       console.error("Dashboard error:", err)
-      setError(err instanceof Error ? err.message : "Failed to load dashboard")
+      setError("Failed to load dashboard")
     } finally {
       setLoading(false)
     }
@@ -137,77 +143,125 @@ export default function DashboardPage() {
 
   const fetchProviderData = async (userId: number) => {
     try {
+      const sql = getDatabase()
+
       // Fetch provider profile
-      const profileResponse = await fetch(`/api/providers/${userId}`)
-      if (profileResponse.ok) {
-        const profileData = await profileResponse.json()
-        if (profileData.success) {
-          setProviderProfile(profileData.provider)
-        }
-      }
+      const [profile] = await sql<ProviderProfile[]>`
+        SELECT 
+          id, 
+          business_name, 
+          category, 
+          description, 
+          location_city, 
+          location_region, 
+          rating, 
+          total_reviews as reviewCount, 
+          verified
+        FROM provider_profiles
+        WHERE user_id = ${userId}
+      `
+      setProviderProfile(profile || null)
 
       // Fetch provider bookings
-      const bookingsResponse = await fetch(`/api/bookings?providerId=${userId}`)
-      if (bookingsResponse.ok) {
-        const bookingsData = await bookingsResponse.json()
-        if (bookingsData.success) {
-          setBookings(bookingsData.bookings || [])
+      const bookings = await sql<Booking[]>`
+        SELECT 
+          b.id, 
+          b.event_date, 
+          b.event_time, 
+          b.location, 
+          b.guest_count, 
+          b.total_amount, 
+          b.status, 
+          b.created_at,
+          u.first_name as client_first_name,
+          u.last_name as client_last_name,
+          ps.service_name
+        FROM bookings b
+        JOIN users u ON b.seeker_id = u.id
+        LEFT JOIN provider_services ps ON b.service_id = ps.id
+        WHERE b.provider_id = ${userId}
+        ORDER BY b.created_at DESC
+      `
+      setBookings(bookings || [])
 
-          // Calculate stats
-          const totalEarnings =
-            bookingsData.bookings
-              ?.filter((b: Booking) => b.status === "completed")
-              .reduce((sum: number, b: Booking) => sum + b.totalAmount, 0) || 0
+      // Calculate stats
+      const totalEarnings =
+        bookings
+          ?.filter((b) => b.status === "completed")
+          .reduce((sum, b) => sum + Number.parseFloat(b.totalAmount.toString()), 0) || 0
 
-          const activeBookings =
-            bookingsData.bookings?.filter((b: Booking) => ["pending", "confirmed"].includes(b.status)).length || 0
-
-          setStats((prev) => ({
-            ...prev,
-            totalEarnings,
-            activeBookings,
-            totalBookings: bookingsData.bookings?.length || 0,
-            profileViews: Math.floor(Math.random() * 500) + 100, // Mock data
-            responseRate: 95, // Mock data
-          }))
-        }
-      }
+      const activeBookings = bookings?.filter((b) => ["pending", "confirmed"].includes(b.status)).length || 0
 
       // Fetch messages
-      const messagesResponse = await fetch(`/api/messages?userId=${userId}`)
-      if (messagesResponse.ok) {
-        const messagesData = await messagesResponse.json()
-        if (messagesData.success) {
-          setMessages(messagesData.messages?.slice(0, 5) || [])
-        }
-      }
+      const messages = await sql<Message[]>`
+        SELECT 
+          m.id, 
+          m.message, 
+          m.created_at, 
+          u.first_name as from_name, 
+          u.avatar_url as from_avatar,
+          m.is_read
+        FROM messages m
+        JOIN users u ON m.from_id = u.id
+        WHERE m.to_id = ${userId}
+        ORDER BY m.created_at DESC
+        LIMIT 5
+      `
+      setMessages(messages || [])
+
+      setStats({
+        totalEarnings,
+        activeBookings,
+        profileViews: Math.floor(Math.random() * 500) + 100, // Mock data
+        responseRate: 95, // Mock data
+      })
     } catch (err) {
       console.error("Provider data error:", err)
+      setError("Failed to load provider data")
     }
   }
 
   const fetchSeekerData = async (userId: number) => {
     try {
+      const sql = getDatabase()
+
       // Fetch seeker bookings
-      const bookingsResponse = await fetch(`/api/bookings?seekerId=${userId}`)
-      if (bookingsResponse.ok) {
-        const bookingsData = await bookingsResponse.json()
-        if (bookingsData.success) {
-          setBookings(bookingsData.bookings || [])
+      const bookings = await sql<Booking[]>`
+        SELECT 
+          b.id, 
+          b.event_date, 
+          b.event_time, 
+          b.location, 
+          b.guest_count, 
+          b.total_amount, 
+          b.status, 
+          b.created_at,
+          pp.business_name as provider_name,
+          ps.service_name
+        FROM bookings b
+        JOIN provider_profiles pp ON b.provider_id = pp.user_id
+        LEFT JOIN provider_services ps ON b.service_id = ps.id
+        WHERE b.seeker_id = ${userId}
+        ORDER BY b.created_at DESC
+      `
+      setBookings(bookings || [])
 
-          const activeBookings =
-            bookingsData.bookings?.filter((b: Booking) => ["pending", "confirmed"].includes(b.status)).length || 0
+      const activeBookings = bookings?.filter((b) => ["pending", "confirmed"].includes(b.status)).length || 0
 
-          setStats((prev) => ({
-            ...prev,
-            activeBookings,
-            totalBookings: bookingsData.bookings?.length || 0,
-            savedProviders: Math.floor(Math.random() * 20) + 5, // Mock data
-          }))
-        }
-      }
+      // Fetch saved providers
+      const savedProviders = await sql`
+        SELECT COUNT(*) FROM saved_providers WHERE seeker_id = ${userId}
+      `
+      const savedProvidersCount = savedProviders[0]?.count || 0
+
+      setStats({
+        activeBookings,
+        totalBookings: bookings?.length || 0,
+        savedProviders: savedProvidersCount,
+      })
     } catch (err) {
       console.error("Seeker data error:", err)
+      setError("Failed to load seeker data")
     }
   }
 

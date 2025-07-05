@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getDatabase } from "@/lib/db"
 import { verifyToken } from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
@@ -97,6 +98,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const sql = getDatabase()
+
+    // Get commission settings
+    const commissionSettings = await sql`
+      SELECT commission_rate FROM commission_settings ORDER BY id DESC LIMIT 1
+    `
+
+    const commissionRate =
+      commissionSettings.length > 0 ? Number.parseFloat(commissionSettings[0].commission_rate) : 0.1
+
+    // Calculate commission and provider amount
+    const commissionAmount = amount * commissionRate
+    const providerAmount = amount - commissionAmount
+
     // Simulate payment processing (90% success rate for demo)
     const isSuccess = Math.random() > 0.1
 
@@ -113,14 +128,46 @@ export async function POST(request: NextRequest) {
     // Simulate payment processing delay
     await new Promise((resolve) => setTimeout(resolve, 2000))
 
-    // Generate mock transaction ID
+    // Generate transaction ID
     const transactionId = `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+    // Update booking with commission details
+    await sql`
+      UPDATE bookings 
+      SET 
+        status = 'confirmed',
+        payment_status = 'paid',
+        commission_rate = ${commissionRate},
+        commission_amount = ${commissionAmount},
+        provider_amount = ${providerAmount}
+      WHERE id = ${bookingId}
+    `
+
+    // Create commission payment record
+    await sql`
+      INSERT INTO commission_payments (
+        booking_id, 
+        commission_amount, 
+        payment_method, 
+        transaction_id, 
+        status
+      )
+      VALUES (
+        ${bookingId}, 
+        ${commissionAmount}, 
+        ${paymentMethod}, 
+        ${transactionId}, 
+        'pending'
+      )
+    `
 
     // Mock successful payment response
     const mockPayment = {
       id: Math.floor(Math.random() * 1000) + 1,
       bookingId,
       amount,
+      commissionAmount,
+      providerAmount,
       currency: "GHS",
       paymentMethod,
       status: "completed",
